@@ -2,24 +2,26 @@
   "openapi": "3.0.0",
   "info": {
     "title": "Drive Partagé Reader",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "description": "Cette API permet de lire les fichiers d'un dossier spécifique dans un Drive partagé Google, à partir d’un refresh_token OAuth2."
   },
   "servers": [
     {
-      "url": "https://gpt-drive-backend.onrender.com"
+      "url": "https://gpt-drive-backend.onrender.com",
+      "description": "Serveur principal hébergeant l’API FastAPI du backend"
     }
   ],
   "paths": {
     "/folder_files": {
       "get": {
         "operationId": "listSharedDriveFolderFiles",
-        "summary": "Liste les fichiers d'un dossier dans un Drive partagé",
+        "summary": "Liste les fichiers d’un dossier dans un Drive partagé",
         "parameters": [
           {
             "name": "refresh_token",
             "in": "query",
             "required": true,
-            "description": "Refresh token OAuth 2.0 Google Drive",
+            "description": "Refresh token Google OAuth 2.0 avec accès Drive",
             "schema": {
               "type": "string"
             }
@@ -27,7 +29,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Liste des fichiers récupérés depuis le dossier partagé",
+            "description": "Liste des fichiers récupérés depuis le Drive partagé",
             "content": {
               "application/json": {
                 "schema": {
@@ -38,10 +40,22 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "id": { "type": "string" },
-                          "name": { "type": "string" },
-                          "mimeType": { "type": "string" },
-                          "driveId": { "type": "string" }
+                          "id": {
+                            "type": "string",
+                            "description": "Identifiant unique du fichier"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "Nom du fichier"
+                          },
+                          "mimeType": {
+                            "type": "string",
+                            "description": "Type MIME (ex: application/pdf)"
+                          },
+                          "driveId": {
+                            "type": "string",
+                            "description": "ID du Drive partagé"
+                          }
                         },
                         "required": ["id", "name", "mimeType"]
                       }
@@ -52,10 +66,10 @@
             }
           },
           "400": {
-            "description": "Requête invalide ou token incorrect"
+            "description": "Requête invalide ou paramètre manquant"
           },
           "401": {
-            "description": "Token d'accès manquant ou invalide"
+            "description": "Token d’accès invalide ou expiré"
           }
         }
       }
