@@ -1,0 +1,39 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Drive Connector",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://gpt-drive-backend.onrender.com"
+    }
+  ],
+  "paths": {
+    "/files": {
+      "get": {
+        "operationId": "listDriveFiles",
+        "summary": "Liste les fichiers Google Drive",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des fichiers Drive"
+          }
+        }
+      }
+    }
+  }
+}
