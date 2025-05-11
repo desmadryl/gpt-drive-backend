@@ -5,15 +5,16 @@ import os
 
 app = FastAPI()
 
-# Variables d'environnement à configurer dans Render
+# Identifiants OAuth et Drive
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 REDIRECT_URI = "https://gpt-drive-backend.onrender.com/oauth/callback"
-FOLDER_ID = os.getenv("TARGET_FOLDER_ID")  # L'ID du dossier Google Drive ciblé
+FOLDER_ID = os.getenv("TARGET_FOLDER_ID")  # Dossier spécifique dans le Drive partagé
+SHARED_DRIVE_ID = os.getenv("TARGET_SHARED_DRIVE_ID")  # Drive partagé
 
 @app.get("/")
 def home():
-    return {"message": "API en ligne avec rafraîchissement et accès dossier Drive."}
+    return {"message": "API active avec support du Drive partagé."}
 
 @app.get("/refresh_token")
 def refresh_token(refresh_token: str = Query(...)):
@@ -24,22 +25,27 @@ def refresh_token(refresh_token: str = Query(...)):
 
 @app.get("/folder_files")
 def list_folder_files(refresh_token: str = Query(...)):
-    # Rafraîchir automatiquement le token
     token_data = refresh_token_request(refresh_token)
     access_token = token_data.get("access_token")
-    
+
     if not access_token:
         raise HTTPException(status_code=401, detail="Token d'accès manquant ou invalide.")
-    
-    # Filtrer les fichiers dans le dossier cible
+
+    # Requête ciblant un dossier spécifique dans un Drive partagé
     query = f"'{FOLDER_ID}' in parents"
     headers = {"Authorization": f"Bearer {access_token}"}
-    params = {"q": query}
-    
+    params = {
+        "q": query,
+        "includeItemsFromAllDrives": "true",
+        "supportsAllDrives": "true",
+        "corpora": "drive",
+        "driveId": SHARED_DRIVE_ID
+    }
+
     r = requests.get("https://www.googleapis.com/drive/v3/files", headers=headers, params=params)
     if r.status_code != 200:
         raise HTTPException(status_code=400, detail=f"Erreur Google Drive : {r.text}")
-    
+
     return r.json()
 
 def refresh_token_request(refresh_token: str):
