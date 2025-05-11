@@ -1,50 +1,54 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi import FastAPI, Query, HTTPException
+from fastapi.responses import JSONResponse
 import requests
 import os
 
 app = FastAPI()
 
+# Variables d'environnement à configurer dans Render
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 REDIRECT_URI = "https://gpt-drive-backend.onrender.com/oauth/callback"
-SCOPE = "https://www.googleapis.com/auth/drive.readonly"
+FOLDER_ID = os.getenv("TARGET_FOLDER_ID")  # L'ID du dossier Google Drive ciblé
 
 @app.get("/")
 def home():
-    return {"message": "API prête pour Google Drive OAuth"}
+    return {"message": "API en ligne avec rafraîchissement et accès dossier Drive."}
 
-@app.get("/oauth/login")
-def login():
-    auth_url = (
-        f"https://accounts.google.com/o/oauth2/v2/auth"
-        f"?client_id={CLIENT_ID}"
-        f"&redirect_uri={REDIRECT_URI}"
-        f"&response_type=code"
-        f"&scope={SCOPE}"
-        f"&access_type=offline"
-        f"&prompt=consent"
-    )
-    return RedirectResponse(auth_url)
+@app.get("/refresh_token")
+def refresh_token(refresh_token: str = Query(...)):
+    token_data = refresh_token_request(refresh_token)
+    if not token_data.get("access_token"):
+        raise HTTPException(status_code=400, detail="Échec de rafraîchissement du token.")
+    return token_data
 
-@app.get("/oauth/callback")
-def callback(code: str):
+@app.get("/folder_files")
+def list_folder_files(refresh_token: str = Query(...)):
+    # Rafraîchir automatiquement le token
+    token_data = refresh_token_request(refresh_token)
+    access_token = token_data.get("access_token")
+    
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Token d'accès manquant ou invalide.")
+    
+    # Filtrer les fichiers dans le dossier cible
+    query = f"'{FOLDER_ID}' in parents"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    params = {"q": query}
+    
+    r = requests.get("https://www.googleapis.com/drive/v3/files", headers=headers, params=params)
+    if r.status_code != 200:
+        raise HTTPException(status_code=400, detail=f"Erreur Google Drive : {r.text}")
+    
+    return r.json()
+
+def refresh_token_request(refresh_token: str):
     token_url = "https://oauth2.googleapis.com/token"
     data = {
-        "code": code,
         "client_id": CLIENT_ID,
         "client_secret": CLIENT_SECRET,
-        "redirect_uri": REDIRECT_URI,
-        "grant_type": "authorization_code"
+        "refresh_token": refresh_token,
+        "grant_type": "refresh_token"
     }
     r = requests.post(token_url, data=data)
-    if r.status_code == 200:
-        return JSONResponse(content=r.json())
-    return JSONResponse(status_code=400, content={"error": "Erreur OAuth", "detail": r.text})
-
-@app.get("/files")
-def list_files(token: str, query: str = ""):
-    headers = {"Authorization": f"Bearer {token}"}
-    params = {"q": query}
-    r = requests.get("https://www.googleapis.com/drive/v3/files", headers=headers, params=params)
-    return r.json()
+    return r.json() if r.status_code == 200 else {}
